@@ -106,6 +106,25 @@ button:focus-visible,.prov:focus-visible,.pin:focus-visible{outline:2px solid va
 .plabel{paint-order:stroke;stroke:var(--land0);stroke-width:3px;stroke-opacity:.7}
 .empty{color:var(--muted);font-size:14px;padding:8px 0}
 .note{font-size:12px;color:var(--muted);margin:0}
+.card{cursor:pointer;transition:border-color .2s, box-shadow .2s}
+.card.on{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.detail{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:14px;display:flex;flex-direction:column;gap:10px;animation:rise .3s ease-out both}
+@keyframes rise{from{transform:translateY(6px);opacity:.4}to{transform:none;opacity:1}}
+.dhead{display:grid;grid-template-columns:56px 1fr auto;gap:12px;align-items:center}
+.dhead .ic{width:56px;height:56px;border-radius:16px;background:var(--t);display:grid;place-items:center}
+.dhead .ic svg{width:42px;height:42px}
+.dname{font:400 22px var(--display);line-height:1.2}
+.dplace{font-size:13px;color:var(--muted)}
+.dclose{font:400 16px var(--body);width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.dlabel{font:400 15px var(--display);color:var(--muted)}
+.dishes{display:flex;flex-wrap:wrap;gap:6px}
+.dish{display:inline-flex;align-items:center;gap:6px;padding:7px 13px 7px 10px;border-radius:999px;background:var(--t);color:var(--ink);text-decoration:none;font:400 15px var(--display);border:1px solid transparent}
+.dish:hover{border-color:var(--k)}
+.dish:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dish svg{flex:0 0 auto}
+@media (prefers-reduced-motion:reduce){ .detail{animation:none} }
 @media (prefers-reduced-motion:reduce){ .pin .pop{animation:none} .prov{transition:none} }
 </style>
 
@@ -119,8 +138,10 @@ button:focus-visible,.prov:focus-visible,.pin:focus-visible{outline:2px solid va
 
   <section class="mapcard">
     <svg id="map" viewBox="0 0 300 420" role="img" aria-label="남한 시·도 지도와 제철 산지"></svg>
-    <p class="maphint">그림을 누르면 이름이, 땅을 누르면 그 지역 목록이 나와요</p>
+    <p class="maphint">그림을 누르면 만들 수 있는 요리가, 땅을 누르면 그 지역 목록이 나와요</p>
   </section>
+
+  <section class="detail" id="detail" hidden aria-live="polite"></section>
 
   <section style="display:flex;flex-direction:column;gap:10px">
     <div class="listhead">
@@ -302,6 +323,37 @@ const FOODS = [
  ["곶감","gb","상주",[12,1,2],"fruit",["gotgam"],128.16,36.41],
 ].map(([name,r,place,months,kind,ic,lon,lat],i)=>({id:i,name,r,place,months,kind,ic,lon,lat}));
 
+/* ---------- 대표 요리 ---------- */
+const SPINACH = ["시금치나물","시금치된장국","시금치무침"], GARLIC = ["마늘장아찌","통마늘구이","알리오 올리오"];
+const DISHES = {
+ "굴":["굴국밥","굴전","굴무침"], "꼬막":["꼬막비빔밥","꼬막무침","삶은 꼬막"], "매생이":["매생이국","매생이굴떡국","매생이전"],
+ "과메기":["과메기 쌈","과메기무침"], "방어":["방어회","방어구이","방어조림"], "대구":["대구탕","대구뽈찜","대구전"],
+ "도루묵":["도루묵찌개","도루묵구이","도루묵조림"], "양미리":["양미리구이","양미리조림"], "김":["김구이","김부각","김무침"],
+ "홍어":["홍어삼합","홍어무침","홍어애국"], "대게":["대게찜","게딱지 볶음밥","대게라면"], "주꾸미":["주꾸미볶음","주꾸미 샤브샤브","주꾸미숙회"],
+ "도다리":["도다리쑥국","도다리 세꼬시","도다리찜"], "키조개":["관자구이","키조개 삼합","관자 버터구이"], "바지락":["바지락칼국수","바지락술찜","바지락된장국"],
+ "멍게":["멍게비빔밥","멍게회","멍게젓"], "꽃게":["꽃게탕","간장게장","양념게장"], "밴댕이":["밴댕이회무침","밴댕이구이","밴댕이회"],
+ "전복":["전복죽","전복버터구이","전복장"], "민어":["민어회","민어탕","민어전"], "갯장어":["갯장어 샤브샤브","갯장어구이","갯장어회"],
+ "풍천장어":["장어구이","장어탕","장어덮밥"], "오징어":["오징어볶음","오징어순대","오징어물회"], "갈치":["갈치조림","갈치구이","갈치국"],
+ "전어":["전어구이","전어회무침","전어회"], "대하":["대하 소금구이","대하튀김","새우장"], "삼치":["삼치구이","삼치회","삼치조림"],
+ "섬초(시금치)":SPINACH, "포항초(시금치)":SPINACH, "봄동":["봄동겉절이","봄동전","봄동비빔밥"], "미나리":["미나리 삼겹살구이","미나리전","미나리무침"],
+ "햇녹차":["녹차","녹차밥","녹차라떼"], "양파":["양파장아찌","양파볶음","양파전"], "마늘":GARLIC, "육쪽마늘":GARLIC,
+ "감자":["감자전","감자조림","감자옹심이"], "옥수수":["찐옥수수","옥수수전","콘치즈"], "고추":["고추장아찌","고추전","풋고추 된장무침"],
+ "고구마":["군고구마","고구마맛탕","고구마줄기볶음"], "햅쌀":["햅쌀밥","누룽지","식혜"], "생강":["생강차","생강청","편강"],
+ "가을배추":["김장김치","배추전","배춧국"], "두릅":["두릅숙회","두릅전","두릅장아찌"], "곰취":["곰취쌈","곰취장아찌","곰취나물"],
+ "송이":["송이구이","송이밥","송이산적"], "밤":["군밤","밤밥","밤조림"], "인삼":["삼계탕","인삼튀김","수삼 꿀절임"],
+ "딸기":["딸기잼","딸기청","딸기 샌드위치"], "한라봉":["한라봉청","한라봉 에이드","한라봉 마멀레이드"], "노지 감귤":["귤청","귤잼","진피차"],
+ "참외":["참외장아찌","참외무침","참외 샐러드"], "오디":["오디잼","오디청"], "매실":["매실청","매실장아찌","매실주"],
+ "복분자":["복분자청","복분자잼","복분자주"], "수박":["수박화채","수박주스","수박껍질무침"], "복숭아":["복숭아 병조림","복숭아청","복숭아 콤포트"],
+ "포도":["포도잼","포도즙","포도청"], "배":["배숙","배즙","배깍두기"], "대추":["대추차","대추고","대추칩"],
+ "사과":["사과잼","사과청","사과파이"], "단감":["감말랭이","단감무침","단감 샐러드"], "유자":["유자차","유자 드레싱","유자청"],
+ "곶감":["수정과","곶감 호두말이","곶감쌈"],
+};
+const BOWL = `<svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M2 7.5h12a6 5 0 0 1-12 0z" fill="var(--k)"/><path d="M5.5 5c0-1 1-1.2 1-2.4M9.5 5c0-1 1-1.2 1-2.4" stroke="var(--k)" stroke-width="1.2" fill="none" stroke-linecap="round"/></svg>`;
+function monthText(ms){
+  const runs=[]; ms.forEach(m=>{const r=runs[runs.length-1]; if(r && (r[1]%12)+1===m) r[1]=m; else runs.push([m,m]);});
+  return runs.map(([a,b])=>a===b?`${a}월`:`${a}~${b}월`).join(", ");
+}
+
 /* ---------- 상태 ---------- */
 const NOW = new Date().getMonth()+1;
 let month = NOW, region = null, picked = null;
@@ -362,7 +414,7 @@ function renderMap(items, animate){
 
 function handleMap(target){
   const pin = target.closest(".pin");
-  if(pin){ const id=+pin.dataset.id; picked = picked===id?null:id; renderMap(current(), false); return; }
+  if(pin){ pick(+pin.dataset.id, false); return; }
   const pr = target.closest(".prov");
   if(pr){ const r=pr.dataset.r; region = region===r?null:r; picked=null; render(false); }
 }
@@ -373,7 +425,7 @@ $("map").addEventListener("keydown",e=>{ if(e.key!=="Enter"&&e.key!==" ")return;
 function cardHTML(f){
   const first=f.months.length>1 && !f.months.includes(prev(month)), last=f.months.length>1 && !f.months.includes(next(month));
   const bar = Array.from({length:12},(_,i)=>`<span class="${f.months.includes(i+1)?'on':''} ${i+1===month?'cur':''}"></span>`).join("");
-  return `<div class="card" style="--k:var(--${f.kind});--t:var(--${f.kind}T)">
+  return `<div class="card ${picked===f.id?'on':''}" data-id="${f.id}" role="button" tabindex="0" style="--k:var(--${f.kind});--t:var(--${f.kind}T)">
     <span class="ic">${icon(f.ic)}</span>
     <span class="name">${f.name}${first?'<span class="tag first">첫물</span>':''}${last?'<span class="tag last">끝물</span>':''}</span>
     <span class="place">${REGION_NAMES[f.r]} ${f.place}</span>
@@ -388,6 +440,32 @@ function renderList(items){
   }).join("");
   $("list").innerHTML = html || `<p class="empty">고른 분류에 해당하는 품목이 없어요.</p>`;
 }
+function pick(id, fromList){
+  picked = picked===id ? null : id;
+  renderMap(current(), false); renderDetail();
+  document.querySelectorAll("#list .card").forEach(c=>c.classList.toggle("on", +c.dataset.id===picked));
+  if(fromList && picked!==null){
+    const smooth = !matchMedia("(prefers-reduced-motion: reduce)").matches;
+    $("detail").scrollIntoView({block:"center", behavior: smooth?"smooth":"auto"});
+  }
+}
+function renderDetail(){
+  const d=$("detail"), f=FOODS.find(x=>x.id===picked);
+  if(!f){ d.hidden=true; d.innerHTML=""; return; }
+  const dishes = DISHES[f.name] || [];
+  d.style.setProperty("--t", `var(--${f.kind}T)`); d.style.setProperty("--k", `var(--${f.kind})`);
+  d.innerHTML = `<div class="dhead"><span class="ic">${icon(f.ic)}</span>
+      <div><div class="dname">${f.name}</div><div class="dplace">${REGION_NAMES[f.r]} ${f.place} · ${monthText(f.months)} 제철</div></div>
+      <button class="dclose" id="dclose" aria-label="닫기">✕</button></div>
+    <div class="dlabel">이걸로 만들 수 있는 요리</div>
+    <div class="dishes">${dishes.map(x=>`<a class="dish" href="https://www.10000recipe.com/recipe/list.html?q=${encodeURIComponent(x)}" target="_blank" rel="noopener">${BOWL}${x}</a>`).join("")}</div>
+    <p class="note">요리 이름을 누르면 만개의레시피에서 조리법을 찾아 줘요.</p>`;
+  d.hidden = false;
+  $("dclose").addEventListener("click", ()=>pick(f.id, false));
+}
+$("list").addEventListener("click", e=>{ const c=e.target.closest(".card"); if(c) pick(+c.dataset.id, true); });
+$("list").addEventListener("keydown", e=>{ if(e.key!=="Enter"&&e.key!==" ")return; const c=e.target.closest(".card"); if(!c)return; e.preventDefault(); pick(+c.dataset.id, true); });
+
 function render(animate){
   const items = current();
   $("mTitle").textContent = `${month}월`;
@@ -397,7 +475,7 @@ function render(animate){
   document.querySelectorAll("#filters button").forEach(b=>b.setAttribute("aria-pressed", kindsOn.has(b.dataset.k)));
   $("listTitle").textContent = region?`${REGION_NAMES[region]}의 ${month}월 제철`:`전국 ${month}월 제철 산지`;
   $("clear").hidden = !region;
-  renderMap(items, animate); renderList(items);
+  renderMap(items, animate); renderList(items); renderDetail();
 }
 render(true);
 const cur = $("m"+NOW); cur && cur.scrollIntoView && cur.scrollIntoView({inline:"center",block:"nearest"});
